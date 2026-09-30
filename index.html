@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPROSDM-RS</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1c2733;--mut:#64748b;--pri:#0f766e;--bad:#b91c1c;--warn:#b45309;--ok:#15803d;--line:#e2e8f0}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:14px 18px}
+header h1{margin:0;font-size:18px}
+header p{margin:2px 0 0;opacity:.85;font-size:12px}
+nav{display:flex;gap:4px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);padding:0 10px;position:sticky;top:0;z-index:5}
+nav button{border:0;background:none;padding:12px 14px;cursor:pointer;font-size:14px;color:var(--mut);white-space:nowrap;border-bottom:3px solid transparent}
+nav button.on{color:var(--pri);border-color:var(--pri);font-weight:600}
+main{padding:14px;max-width:1300px;margin:auto}
+.tab{display:none}.tab.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:15px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi b{display:block;font-size:22px}
+.kpi span{color:var(--mut);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:2px}
+input,select{width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{background:#f8fafc;font-size:12px;color:var(--mut)}
+td input,td select{padding:5px 6px;min-width:64px}
+td.n input{min-width:170px}
+.tw{overflow-x:auto}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.Kurang{background:#fee2e2;color:var(--bad)}.Proporsional{background:#dcfce7;color:var(--ok)}.Lebih{background:#fef3c7;color:var(--warn)}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:13px;margin:0 6px 6px 0}
+.btn.g{background:#fff;color:var(--pri);border:1px solid var(--pri)}
+.btn.x{background:#fff;color:var(--bad);border:1px solid #fecaca;padding:4px 8px}
+.note{color:var(--mut);font-size:12px}
+.warn{background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:8px;font-size:12px;margin-bottom:10px}
+.ins li{margin-bottom:6px}
+.bar{background:#e2e8f0;height:8px;border-radius:4px;min-width:80px}
+.bar i{display:block;height:8px;border-radius:4px}
+@media print{nav,.noprint{display:none!important}.tab{display:block!important}header{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SIPROSDM-RS &mdash; Sistem Proporsionalitas SDM Rumah Sakit</h1>
+  <p>WISN &middot; Gillies &middot; Gap analysis &middot; Kelayakan biaya terhadap klaim JKN/INA-CBG</p>
+</header>
+<nav id="nav">
+  <button data-tab="t-sum" class="on">Ringkasan</button>
+  <button data-tab="t-par">Parameter</button>
+  <button data-tab="t-ri">Rawat Inap</button>
+  <button data-tab="t-rj">Rawat Jalan</button>
+  <button data-tab="t-pen">Penunjang &amp; Umum</button>
+  <button data-tab="t-scn">Skenario</button>
+  <button data-tab="t-syn">Data &amp; Sinkron</button>
+</nav>
+<main>
+  <section id="t-sum" class="tab on"><div id="sum"></div></section>
+
+  <section id="t-par" class="tab">
+    <div class="warn">Semua angka bawaan adalah <b>asumsi awal</b> agar aplikasi langsung berjalan. Ganti dengan data riil RS (SIMRS, payroll, klaim BPJS 6&ndash;12 bulan terakhir) dan idealnya validasi waktu baku dengan studi time &amp; motion.</div>
+    <div class="card"><h2>Profil &amp; Aktivitas RS</h2><div class="grid" id="p-rs"></div></div>
+    <div class="card"><h2>Waktu Kerja Tersedia (WISN)</h2><div class="grid" id="p-wk"></div><p class="note" id="p-avail"></p></div>
+    <div class="card"><h2>Keuangan &amp; Biaya SDM</h2><div class="grid" id="p-keu"></div></div>
+  </section>
+
+  <section id="t-ri" class="tab">
+    <div class="card">
+      <h2>Rawat Inap &mdash; Metode Gillies (jam perawatan &times; pasien per hari)</h2>
+      <p class="note">Kebutuhan = (TT &times; BOR &times; jam perawatan/pasien/hari &times; hari operasional) &divide; waktu kerja tersedia per tahun. Dibandingkan dengan minimum pos jaga 24 jam; dipakai yang terbesar. BOR khusus dikosongkan = ikut BOR global.</p>
+      <div id="ri-warn"></div>
+      <div class="tw"><table id="ri-t"></table></div>
+      <button class="btn g noprint" data-add="ri">+ Bangsal</button>
+    </div>
+  </section>
+
+  <section id="t-rj" class="tab">
+    <div class="card">
+      <h2>Rawat Jalan &mdash; WISN per poli (perawat/bidan)</h2>
+      <p class="note">Volume poli = kunjungan RJ/bulan &times; porsi poli. Kebutuhan = volume &times; 12 &times; menit/pasien &times; (1+kelonggaran) &divide; waktu tersedia. Dokter tidak dihitung sebagai FTE, tetapi lewat jasa pelayanan (% pendapatan).</p>
+      <div id="rj-warn"></div>
+      <div class="tw"><table id="rj-t"></table></div>
+      <button class="btn g noprint" data-add="rj">+ Poli</button>
+    </div>
+  </section>
+
+  <section id="t-pen" class="tab">
+    <div class="card">
+      <h2>Penunjang Klinis &amp; Unit Umum</h2>
+      <p class="note">Rumus tiap unit: FTE = maks( beban kerja, pos jaga, minimum ). Beban kerja = volume/bln &times; 12 &times; menit &times; tim &times; (1+kelonggaran) &divide; waktu tersedia. Pos jaga = jumlah pos &times; jam operasi/hari &times; hari operasional &divide; waktu tersedia. Sumber volume "RJ" atau "Hari rawat" otomatis mengikuti Parameter.</p>
+      <div class="tw"><table id="pen-t"></table></div>
+      <button class="btn g noprint" data-add="pen">+ Unit</button>
+    </div>
+  </section>
+
+  <section id="t-scn" class="tab"><div id="scn"></div></section>
+
+  <section id="t-syn" class="tab">
+    <div class="card">
+      <h2>Simpan &amp; Muat</h2>
+      <p class="note">Data otomatis tersimpan di browser ini. Untuk berbagi antar perangkat, gunakan sinkron Google Sheets atau ekspor berkas.</p>
+      <button class="btn" id="b-push">Simpan ke Google Sheets</button>
+      <button class="btn g" id="b-pull">Muat dari Google Sheets</button>
+      <div id="syn-msg" class="note" style="margin:6px 0"></div>
+      <hr style="border:0;border-top:1px solid var(--line)">
+      <button class="btn g" id="b-csv">Ekspor hasil (CSV)</button>
+      <button class="btn g" id="b-json">Ekspor data (JSON)</button>
+      <button class="btn g" id="b-imp">Impor data (JSON)</button>
+      <input type="file" id="f-imp" accept=".json" style="display:none">
+      <button class="btn g" id="b-print">Cetak / simpan PDF</button>
+      <button class="btn x" id="b-reset">Reset ke bawaan</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const API_URL='API_URL';
+const LS='siprosdm_v1';
+
+//<<LOGIC
+const N=v=>{const x=parseFloat(v);return isNaN(x)?0:x};
+const DEF={
+ rs:{tt:140,bor:77.5,alos:4,rj:7000,hariRJ:26,jkn:95,hariOps:365,hariMinggu:5,jamMinggu:40,cuti:12,libur:16,diklat:5,sakit:12},
+ keu:{klaimRI:4800000,klaimRJ:350000,dokterPct:25,targetPct:45,cPerawat:4200000,cNakes:4700000,cNon:3200000,shock:0},
+ ri:[
+  {n:'Interna (Penyakit Dalam)',tt:36,bor:'',jam:3.6,pos:2,akt:''},
+  {n:'Bedah',tt:28,bor:'',jam:3.8,pos:2,akt:''},
+  {n:'Anak',tt:20,bor:'',jam:4,pos:2,akt:''},
+  {n:'Obgyn / Nifas',tt:16,bor:'',jam:3.2,pos:2,akt:''},
+  {n:'Perinatologi',tt:10,bor:'',jam:3.5,pos:1,akt:''},
+  {n:'VIP / Paviliun',tt:14,bor:'',jam:3.5,pos:1,akt:''},
+  {n:'ICU / HCU',tt:8,bor:'',jam:12,pos:4,akt:''},
+  {n:'Isolasi',tt:8,bor:'',jam:4.5,pos:1,akt:''}
+ ],
+ rj:[
+  {n:'Poli Penyakit Dalam',share:20,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Anak',share:11,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Obgyn',share:11,menit:12,kel:15,min:1,akt:''},
+  {n:'Poli Bedah',share:9,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Saraf',share:9,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Jantung',share:8,menit:12,kel:15,min:1,akt:''},
+  {n:'Poli Paru',share:5,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli THT',share:4,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Mata',share:4,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Kulit & Kelamin',share:3,menit:8,kel:15,min:0.5,akt:''},
+  {n:'Poli Gigi',share:5,menit:15,kel:15,min:1,akt:''},
+  {n:'Poli Orthopedi',share:4,menit:10,kel:15,min:1,akt:''},
+  {n:'Poli Umum / Lainnya',share:7,menit:8,kel:15,min:1,akt:''}
+ ],
+ pen:[
+  {n:'IGD (perawat/bidan)',k:'perawat',src:'',vol:2400,menit:40,tim:1.5,kel:10,pos:3,jam:24,min:0,akt:''},
+  {n:'Kamar Operasi (perawat/penata)',k:'perawat',src:'',vol:300,menit:120,tim:3,kel:15,pos:2,jam:12,min:0,akt:''},
+  {n:'Laboratorium',k:'nakes',src:'',vol:14000,menit:6,tim:1,kel:15,pos:2,jam:24,min:0,akt:''},
+  {n:'Radiologi',k:'nakes',src:'',vol:2200,menit:15,tim:1.5,kel:10,pos:1,jam:24,min:0,akt:''},
+  {n:'Farmasi',k:'nakes',src:'',vol:11000,menit:9,tim:1,kel:15,pos:2,jam:24,min:0,akt:''},
+  {n:'Gizi (klinis)',k:'nakes',src:'hr',vol:0,menit:12,tim:1,kel:15,pos:0,jam:8,min:2,akt:''},
+  {n:'Rehabilitasi Medik / Fisioterapi',k:'nakes',src:'',vol:1500,menit:40,tim:1,kel:10,pos:0,jam:8,min:2,akt:''},
+  {n:'CSSD / Sterilisasi',k:'nakes',src:'hr',vol:0,menit:8,tim:1,kel:10,pos:1,jam:16,min:0,akt:''},
+  {n:'Pendaftaran & Admisi',k:'non',src:'rj',vol:0,menit:4,tim:1,kel:15,pos:2,jam:14,min:0,akt:''},
+  {n:'Rekam Medis, Koding & Verifikator Klaim',k:'non',src:'rj',vol:0,menit:6,tim:1,kel:15,pos:0,jam:8,min:4,akt:''},
+  {n:'Kasir, Keuangan & Akuntansi',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:0,jam:8,min:5,akt:''},
+  {n:'SDM, Umum & Hukum',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:0,jam:8,min:4,akt:''},
+  {n:'IT / SIMRS',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:0,jam:8,min:3,akt:''},
+  {n:'Manajemen & Sekretariat',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:0,jam:8,min:4,akt:''},
+  {n:'Cleaning Service / Sanitasi',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:5,jam:16,min:0,akt:''},
+  {n:'Laundry',k:'non',src:'hr',vol:0,menit:10,tim:1,kel:10,pos:0,jam:8,min:3,akt:''},
+  {n:'Dapur / Pramusaji',k:'non',src:'hr',vol:0,menit:10,tim:1,kel:15,pos:0,jam:8,min:4,akt:''},
+  {n:'Keamanan (Satpam)',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:3,jam:24,min:0,akt:''},
+  {n:'Pemeliharaan Sarana (IPSRS)',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:1,jam:24,min:0,akt:''}
+ ]
+};
+
+function calc(S,ov){
+  ov=ov||{};
+  const r=Object.assign({},S.rs,ov.rs||{}), k=Object.assign({},S.keu,ov.keu||{});
+  const days=52*N(r.hariMinggu)-N(r.cuti)-N(r.libur)-N(r.diklat)-N(r.sakit);
+  const avail=Math.max(0,days*(N(r.jamMinggu)/(N(r.hariMinggu)||1)));
+  const bor=N(r.bor), pasHari=N(r.tt)*bor/100, hrRawat=pasHari*30;
+  const cost={perawat:N(k.cPerawat),nakes:N(k.cNakes),non:N(k.cNon)};
+  const rows=[];
+  const push=(g,i,n,kk,b,c,m,akt)=>{
+    const fte=Math.max(b,c,m);
+    const basis=fte<=0?'-':(fte===b?'Beban kerja':(fte===c?'Pos jaga':'Minimum'));
+    const has=!(akt===''||akt==null); const a=has?N(akt):null;
+    const ratio=has&&fte>0?a/fte:null;
+    const st=ratio==null?null:(ratio<0.9?'Kurang':(ratio>1.1?'Lebih':'Proporsional'));
+    rows.push({g,i,n,k:kk,fte,basis,akt:a,gap:has?a-fte:null,ratio,st,c:fte*(cost[kk]||0),ca:has?a*(cost[kk]||0):null});
+  };
+  S.ri.forEach((x,i)=>{
+    const bb=(x.bor===''||x.bor==null)?bor:N(x.bor);
+    const b=avail?N(x.tt)*bb/100*N(x.jam)*N(r.hariOps)/avail:0;
+    const c=avail?N(x.pos)*24*N(r.hariOps)/avail:0;
+    push('ri',i,x.n,'perawat',b,c,0,x.akt);
+  });
+  S.rj.forEach((x,i)=>{
+    const vol=N(r.rj)*N(x.share)/100;
+    const b=avail?vol*12*N(x.menit)/60/avail*(1+N(x.kel)/100):0;
+    push('rj',i,x.n,'perawat',b,0,N(x.min),x.akt);
+  });
+  S.pen.forEach((x,i)=>{
+    const vol=x.src==='rj'?N(r.rj):(x.src==='hr'?hrRawat:N(x.vol));
+    const b=avail?vol*12*N(x.menit)*(N(x.tim)||1)/60/avail*(1+N(x.kel)/100):0;
+    const c=avail?N(x.pos)*N(x.jam)*N(r.hariOps)/avail:0;
+    push('pen',i,x.n,x.k,b,c,N(x.min),x.akt);
+  });
+  const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
+  const filled=rows.filter(x=>x.akt!=null);
+  const T={n:rows.length,nAkt:filled.length,need:sum(rows,x=>x.fte),akt:sum(filled,x=>x.akt),needF:sum(filled,x=>x.fte),
+           costNeed:sum(rows,x=>x.c),costAkt:sum(filled,x=>x.ca)};
+  const admisi=N(r.alos)>0?hrRawat/N(r.alos):0;
+  const revRI=admisi*N(k.klaimRI), revRJ=N(r.rj)*N(k.klaimRJ);
+  const rev=(revRI+revRJ)*(1-N(k.shock)/100);
+  const dokter=rev*N(k.dokterPct)/100;
+  const ratioNeed=rev>0?(T.costNeed+dokter)/rev:null;
+  const ratioAkt=(rev>0&&T.nAkt===T.n)?(T.costAkt+dokter)/rev:null;
+  const avgCost=T.need>0?T.costNeed/T.need:0;
+  const afford=avgCost>0?(N(k.targetPct)/100*rev-dokter)/avgCost:0;
+  const G={};
+  ['perawat','nakes','non'].forEach(kk=>{
+    const rr=rows.filter(x=>x.k===kk), f=rr.filter(x=>x.akt!=null);
+    const kurang=sum(f.filter(x=>x.st==='Kurang'),x=>x.fte-x.akt);
+    const lebih=sum(f.filter(x=>x.st==='Lebih'),x=>x.akt-x.fte);
+    const realok=Math.min(kurang,lebih);
+    G[kk]={need:sum(rr,x=>x.fte),akt:sum(f,x=>x.akt),needF:sum(f,x=>x.fte),n:rr.length,nf:f.length,kurang,lebih,realok,rekrut:kurang-realok,surplus:lebih-realok,cost:sum(rr,x=>x.c)};
+  });
+  return {avail,days,pasHari,hrRawat,admisi,revRI,revRJ,rev,dokter,rows,T,ratioNeed,ratioAkt,afford,avgCost,G,r,k};
+}
+//>>LOGIC
+
+// ---------- UI ----------
+const $=id=>document.getElementById(id);
+const clone=x=>JSON.parse(JSON.stringify(x));
+const f1=v=>(Math.round(v*10)/10).toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1});
+const sg=v=>(v>0?'+':'')+f1(v);
+const pc=v=>v==null?'-':(v*100).toLocaleString('id-ID',{maximumFractionDigits:1})+'%';
+const rpS=v=>v>=1e9?'Rp '+(v/1e9).toLocaleString('id-ID',{maximumFractionDigits:2})+' M':'Rp '+(v/1e6).toLocaleString('id-ID',{maximumFractionDigits:0})+' jt';
+const KN={perawat:'Perawat & Bidan',nakes:'Tenaga kesehatan lain',non:'Non-klinis / umum'};
+const SEC={ri:'Rawat Inap',rj:'Rawat Jalan',pen:'Penunjang & Umum'};
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+function valid(s){return s&&s.rs&&s.keu&&Array.isArray(s.ri)&&Array.isArray(s.rj)&&Array.isArray(s.pen);}
+function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(valid(s)){s.rs=Object.assign(clone(DEF.rs),s.rs);s.keu=Object.assign(clone(DEF.keu),s.keu);return s;}}catch(e){}return clone(DEF);}
+let S=load(), LAST=null;
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}};
+
+const inp=(g,i,f,v,t,st)=>`<input type="${t||'number'}" ${(t||'number')==='number'?`step="${st||'any'}" inputmode="decimal"`:''} value="${esc(v)}" data-g="${g}" data-i="${i}" data-f="${f}" ${t==='text'?'data-t="s"':''}>`;
+const sel=(g,i,f,v,opts)=>`<select data-g="${g}" data-i="${i}" data-f="${f}" data-t="s">${opts.map(o=>`<option value="${o[0]}" ${o[0]===v?'selected':''}>${o[1]}</option>`).join('')}</select>`;
+const oc=(g,i,f,cls)=>`<td class="${cls||'num'}" id="o-${g}-${i}-${f}"></td>`;
+const del=(g,i)=>`<td class="noprint"><button class="btn x" data-del="${g}:${i}" title="Hapus">&times;</button></td>`;
+const outTail=(g,i)=>oc(g,i,'fte')+oc(g,i,'basis','note')+`<td>${inp(g,i,'akt',S[g][i].akt)}</td>`+oc(g,i,'gap')+oc(g,i,'ratio')+oc(g,i,'st','')+del(g,i);
+const TAILH='<th>Kebutuhan (FTE)</th><th>Dasar</th><th>Aktual (FTE)</th><th>Selisih</th><th>Rasio WISN</th><th>Status</th><th></th>';
+
+function buildParams(){
+  const rs=[['tt','Jumlah tempat tidur'],['bor','BOR rata-rata (%)'],['alos','ALOS (hari)'],['rj','Kunjungan rawat jalan / bulan'],['hariRJ','Hari pelayanan poli / bulan'],['jkn','Pasien JKN (%)'],['hariOps','Hari operasional / tahun']];
+  const wk=[['hariMinggu','Hari kerja / minggu'],['jamMinggu','Jam kerja / minggu'],['cuti','Cuti tahunan (hari)'],['libur','Libur nasional (hari)'],['diklat','Diklat / pelatihan (hari)'],['sakit','Sakit / izin rata-rata (hari)']];
+  const keu=[['klaimRI','Rata-rata klaim rawat inap / kasus (Rp)'],['klaimRJ','Rata-rata klaim rawat jalan / kunjungan (Rp)'],['dokterPct','Jasa pelayanan dokter (% pendapatan)'],['targetPct','Target maks. biaya SDM total (% pendapatan)'],['cPerawat','Biaya / FTE perawat & bidan / bulan (Rp, all-in)'],['cNakes','Biaya / FTE nakes lain / bulan (Rp)'],['cNon','Biaya / FTE non-klinis / bulan (Rp)'],['shock','Simulasi penurunan klaim (%)']];
+  const mk=(arr,sec)=>arr.map(a=>`<div><label>${a[1]}</label><input type="number" step="any" inputmode="decimal" value="${S[sec][a[0]]}" data-sec="${sec}" data-f="${a[0]}"></div>`).join('');
+  $('p-rs').innerHTML=mk(rs,'rs'); $('p-wk').innerHTML=mk(wk,'rs'); $('p-keu').innerHTML=mk(keu,'keu');
+}
+function buildRI(){
+  $('ri-t').innerHTML='<tr><th>Bangsal</th><th>TT</th><th>BOR khusus (%)</th><th>Jam perawatan / pasien / hari</th><th>Min. pos jaga (24 jam)</th>'+TAILH+'</tr>'+
+   S.ri.map((x,i)=>`<tr><td class="n">${inp('ri',i,'n',x.n,'text')}</td><td>${inp('ri',i,'tt',x.tt)}</td><td>${inp('ri',i,'bor',x.bor)}</td><td>${inp('ri',i,'jam',x.jam)}</td><td>${inp('ri',i,'pos',x.pos)}</td>${outTail('ri',i)}</tr>`).join('');
+}
+function buildRJ(){
+  $('rj-t').innerHTML='<tr><th>Poli</th><th>Porsi kunjungan (%)</th><th>Menit perawat / pasien</th><th>Kelonggaran (%)</th><th>FTE minimum</th><th>Pasien / hari</th>'+TAILH+'</tr>'+
+   S.rj.map((x,i)=>`<tr><td class="n">${inp('rj',i,'n',x.n,'text')}</td><td>${inp('rj',i,'share',x.share)}</td><td>${inp('rj',i,'menit',x.menit)}</td><td>${inp('rj',i,'kel',x.kel)}</td><td>${inp('rj',i,'min',x.min)}</td>${oc('rj',i,'pd')}${outTail('rj',i)}</tr>`).join('');
+}
+function buildPen(){
+  const ko=Object.keys(KN).map(k=>[k,KN[k]]), so=[['','Manual'],['rj','Kunjungan RJ'],['hr','Hari rawat']];
+  $('pen-t').innerHTML='<tr><th>Unit</th><th>Kelompok biaya</th><th>Sumber volume</th><th>Volume / bulan</th><th>Menit / satuan</th><th>Tim (orang)</th><th>Kelonggaran (%)</th><th>Pos jaga</th><th>Jam ops / hari</th><th>FTE min.</th>'+TAILH+'</tr>'+
+   S.pen.map((x,i)=>`<tr><td class="n">${inp('pen',i,'n',x.n,'text')}</td><td>${sel('pen',i,'k',x.k,ko)}</td><td>${sel('pen',i,'src',x.src,so)}</td><td>${inp('pen',i,'vol',x.vol)}</td><td>${inp('pen',i,'menit',x.menit)}</td><td>${inp('pen',i,'tim',x.tim)}</td><td>${inp('pen',i,'kel',x.kel)}</td><td>${inp('pen',i,'pos',x.pos)}</td><td>${inp('pen',i,'jam',x.jam)}</td><td>${inp('pen',i,'min',x.min)}</td>${outTail('pen',i)}</tr>`).join('');
+}
+function buildAll(){buildParams();buildRI();buildRJ();buildPen();refresh();}
+
+const setT=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
+
+function refresh(){
+  const R=calc(S); LAST=R;
+  R.rows.forEach(x=>{
+    const id=`o-${x.g}-${x.i}-`;
+    setT(id+'fte',f1(x.fte)); setT(id+'basis',x.basis);
+    setT(id+'gap',x.gap==null?'':sg(x.gap));
+    setT(id+'ratio',x.ratio==null?'':x.ratio.toFixed(2).replace('.',','));
+    const st=$(id+'st'); if(st) st.innerHTML=x.st?`<span class="pill ${x.st}">${x.st}</span>`:'';
+    if(x.g==='rj') setT(id+'pd',f1(N(S.rs.rj)*N(S.rj[x.i].share)/100/(N(S.rs.hariRJ)||1)));
+  });
+  setT('p-avail',`Waktu kerja efektif: ${f1(R.days)} hari/tahun = ${Math.round(R.avail).toLocaleString('id-ID')} jam per FTE per tahun.`);
+  const ttW=S.ri.reduce((t,x)=>t+N(x.tt),0);
+  $('ri-warn').innerHTML=ttW!==N(S.rs.tt)?`<div class="warn">Jumlah TT per bangsal (${ttW}) berbeda dari TT di Parameter (${S.rs.tt}). Perhitungan rawat inap memakai TT per bangsal; pendapatan memakai TT Parameter.</div>`:'';
+  const shareW=S.rj.reduce((t,x)=>t+N(x.share),0);
+  $('rj-warn').innerHTML=Math.abs(shareW-100)>0.01?`<div class="warn">Total porsi kunjungan poli = ${f1(shareW)}%, seharusnya 100%.</div>`:'';
+  renderSummary(R); renderScenario();
+}
+
+function renderSummary(R){
+  const T=R.T, tt=N(S.rs.tt)||1, complete=T.nAkt===T.n, tgt=N(S.keu.targetPct)/100;
+  const kpi=(t,v,s)=>`<div class="kpi"><span>${t}</span><b>${v}</b><span>${s||''}</span></div>`;
+  let h='<div class="kpis">';
+  h+=kpi('Kebutuhan SDM (WISN/Gillies)',f1(T.need)+' FTE',f1(T.need/tt).replace('.',',')+' FTE per tempat tidur');
+  h+=kpi('SDM aktual',T.nAkt?f1(T.akt)+' FTE':'-',complete?'seluruh unit terisi':`${T.nAkt} dari ${T.n} unit terisi`);
+  h+=kpi('Selisih (unit terisi)',T.nAkt?sg(T.akt-T.needF)+' FTE':'-',T.nAkt?'aktual - kebutuhan':'isi kolom Aktual di tab unit');
+  h+=kpi('Perawat & bidan per TT',f1(R.G.perawat.need/tt).replace('.',','),f1(R.G.perawat.need)+' FTE kebutuhan');
+  h+=kpi('Estimasi pendapatan / bulan',rpS(R.rev),`JKN &asymp; ${rpS(R.rev*N(S.rs.jkn)/100)} (${S.rs.jkn}%)`);
+  h+=kpi('Rasio biaya SDM (kebutuhan)',pc(R.ratioNeed),`target &le; ${pc(tgt)} &middot; termasuk jasa dokter ${S.keu.dokterPct}%`);
+  h+=kpi('Rasio biaya SDM (aktual)',pc(R.ratioAkt),complete?'':'menunggu semua unit terisi');
+  h+=kpi('Kapasitas SDM terjangkau',f1(R.afford)+' FTE','pada target rasio '+pc(tgt));
+  h+='</div>';
+
+  // insights
+  const ins=[];
+  if(R.ratioNeed!=null){
+    if(R.ratioNeed>tgt) ins.push(`Kebutuhan SDM <b>menurut beban kerja</b> saja sudah menghasilkan rasio biaya ${pc(R.ratioNeed)}, di atas target ${pc(tgt)}. Menambah orang tidak akan menyelesaikan masalah; yang perlu ditinjau adalah waktu baku, struktur unit, atau pendapatan per kasus (casemix/koding).`);
+    else ins.push(`Kebutuhan SDM sesuai beban kerja menghasilkan rasio biaya ${pc(R.ratioNeed)}, masih di bawah target ${pc(tgt)}. Ada ruang sekitar ${f1(R.afford-T.need)} FTE sebelum menyentuh batas target.`);
+  }
+  if(R.ratioAkt!=null&&R.ratioNeed!=null){
+    const d=R.ratioAkt-R.ratioNeed;
+    ins.push(d>0.005?`Struktur SDM aktual lebih mahal ${(d*100).toFixed(1).replace('.',',')} poin persentase dari pendapatan dibanding kebutuhan WISN: ada ketidakseimbangan alokasi, bukan sekadar kekurangan tenaga.`:'Biaya SDM aktual sejalan dengan kebutuhan WISN.');
+  }
+  ['perawat','nakes','non'].forEach(kk=>{
+    const g=R.G[kk]; if(!g.nf) return;
+    if(g.kurang>0.5||g.lebih>0.5){
+      ins.push(`<b>${KN[kk]}</b>: kekurangan ${f1(g.kurang)} FTE di unit tertentu, kelebihan ${f1(g.lebih)} FTE di unit lain. Realokasi/float pool dapat menutup ${f1(g.realok)} FTE, sisa kebutuhan rekrutmen ${f1(g.rekrut)} FTE${g.surplus>0.5?`, sisa surplus ${f1(g.surplus)} FTE (kandidat tidak diganti saat ada yang keluar)`:''}.`);
+    }
+  });
+  if(!T.nAkt) ins.push('Isi kolom <b>Aktual (FTE)</b> pada tab Rawat Inap, Rawat Jalan, dan Penunjang untuk memunculkan gap analysis dan rekomendasi realokasi.');
+  h+=`<div class="card"><h2>Temuan &amp; Rekomendasi Otomatis</h2><ul class="ins">${ins.map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
+
+  // per kelompok
+  h+='<div class="card"><h2>Per Kelompok Profesi</h2><div class="tw"><table><tr><th>Kelompok</th><th class="num">Kebutuhan</th><th class="num">Aktual</th><th class="num">Kurang</th><th class="num">Lebih</th><th class="num">Realokasi</th><th class="num">Rekrut</th><th class="num">Biaya kebutuhan / bln</th></tr>';
+  ['perawat','nakes','non'].forEach(kk=>{const g=R.G[kk];
+    h+=`<tr><td>${KN[kk]}</td><td class="num">${f1(g.need)}</td><td class="num">${g.nf?f1(g.akt):'-'}</td><td class="num">${g.nf?f1(g.kurang):'-'}</td><td class="num">${g.nf?f1(g.lebih):'-'}</td><td class="num">${g.nf?f1(g.realok):'-'}</td><td class="num">${g.nf?f1(g.rekrut):'-'}</td><td class="num">${rpS(g.cost)}</td></tr>`;});
+  h+='</table></div><p class="note">Kurang/Lebih hanya menghitung unit dengan rasio di luar 0,90&ndash;1,10 dan sudah terisi aktualnya.</p></div>';
+
+  // per bagian
+  h+='<div class="card"><h2>Per Bagian</h2><div class="tw"><table><tr><th>Bagian</th><th class="num">Kebutuhan (FTE)</th><th class="num">Porsi</th><th></th></tr>';
+  ['ri','rj','pen'].forEach(g=>{const v=R.rows.filter(x=>x.g===g).reduce((t,x)=>t+x.fte,0),p=T.need?v/T.need:0;
+    h+=`<tr><td>${SEC[g]}</td><td class="num">${f1(v)}</td><td class="num">${pc(p)}</td><td><div class="bar"><i style="width:${p*100}%;background:var(--pri)"></i></div></td></tr>`;});
+  h+='</table></div></div>';
+
+  // unit dengan gap
+  const withGap=R.rows.filter(x=>x.gap!=null&&x.st!=='Proporsional').sort((a,b)=>a.gap-b.gap);
+  if(withGap.length){
+    h+='<div class="card"><h2>Unit di Luar Batas Proporsional</h2><div class="tw"><table><tr><th>Unit</th><th>Bagian</th><th class="num">Kebutuhan</th><th class="num">Aktual</th><th class="num">Selisih</th><th>Status</th></tr>';
+    withGap.forEach(x=>{h+=`<tr><td>${esc(x.n)}</td><td>${SEC[x.g]}</td><td class="num">${f1(x.fte)}</td><td class="num">${f1(x.akt)}</td><td class="num">${sg(x.gap)}</td><td><span class="pill ${x.st}">${x.st}</span></td></tr>`;});
+    h+='</table></div></div>';
+  }
+  h+='<p class="note">Dokter tidak dihitung sebagai FTE; biayanya dimodelkan sebagai jasa pelayanan (% pendapatan). Rujukan metode: Kepmenkes 81/MENKES/SK/I/2004 (WISN) dan formula Gillies/Douglas untuk keperawatan. Cocokkan juga dengan standar ketenagaan sesuai kelas RS (Permenkes 3/2020) sebelum dijadikan dasar keputusan.</p>';
+  $('sum').innerHTML=h;
+}
+
+function renderScenario(){
+  const tgt=N(S.keu.targetPct)/100;
+  const bors=[60,65,70,75,80,85,90];
+  let h='<div class="card"><h2>Skenario BOR</h2><p class="note">Hanya bangsal (tanpa BOR khusus) dan unit bersumber "Hari rawat" yang bergerak mengikuti BOR; sisanya tetap. Ini menunjukkan seberapa besar biaya SDM yang bersifat tetap.</p><div class="tw"><table><tr><th>BOR</th><th class="num">Hari rawat / bln</th><th class="num">Kebutuhan total (FTE)</th><th class="num">Perawat &amp; bidan (FTE)</th><th class="num">Pendapatan / bln</th><th class="num">Biaya SDM / bln</th><th class="num">Rasio</th><th></th></tr>';
+  bors.forEach(b=>{const R=calc(S,{rs:{bor:b}});const ok=R.ratioNeed!=null&&R.ratioNeed<=tgt;
+    h+=`<tr><td>${b}%</td><td class="num">${Math.round(R.hrRawat).toLocaleString('id-ID')}</td><td class="num">${f1(R.T.need)}</td><td class="num">${f1(R.G.perawat.need)}</td><td class="num">${rpS(R.rev)}</td><td class="num">${rpS(R.T.costNeed+R.dokter)}</td><td class="num">${pc(R.ratioNeed)}</td><td><span class="pill ${ok?'Proporsional':'Kurang'}">${ok?'Dalam target':'Di atas target'}</span></td></tr>`;});
+  h+='</table></div></div>';
+  h+='<div class="card"><h2>Skenario Penurunan Klaim / Tarif</h2><p class="note">Pada BOR saat ini. Menunjukkan kerentanan RS yang 95% bergantung pada JKN bila tarif atau casemix turun.</p><div class="tw"><table><tr><th>Klaim turun</th><th class="num">Pendapatan / bln</th><th class="num">Biaya SDM (kebutuhan) / bln</th><th class="num">Rasio</th><th class="num">Kapasitas SDM terjangkau</th><th></th></tr>';
+  [0,5,10,15,20].forEach(s=>{const R=calc(S,{keu:{shock:s}});const ok=R.ratioNeed!=null&&R.ratioNeed<=tgt;
+    h+=`<tr><td>${s}%</td><td class="num">${rpS(R.rev)}</td><td class="num">${rpS(R.T.costNeed+R.dokter)}</td><td class="num">${pc(R.ratioNeed)}</td><td class="num">${f1(R.afford)} FTE</td><td><span class="pill ${ok?'Proporsional':'Kurang'}">${ok?'Dalam target':'Di atas target'}</span></td></tr>`;});
+  h+='</table></div></div>';
+  $('scn').innerHTML=h;
+}
+
+// ---------- events ----------
+$('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id===b.dataset.tab));window.scrollTo(0,0);});
+function onEdit(e){
+  const t=e.target; if(!t.dataset||!t.dataset.f) return;
+  const v=(t.dataset.t==='s')?t.value:(t.value===''?'':parseFloat(t.value));
+  if(t.dataset.sec) S[t.dataset.sec][t.dataset.f]=(v===''?0:v);
+  else if(t.dataset.g){S[t.dataset.g][+t.dataset.i][t.dataset.f]=v;}
+  save(); refresh();
+}
+document.addEventListener('input',onEdit);
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]'),d=e.target.closest('[data-del]');
+  if(a){const g=a.dataset.add;
+    const tpl={ri:{n:'Bangsal baru',tt:10,bor:'',jam:3.5,pos:1,akt:''},rj:{n:'Poli baru',share:0,menit:10,kel:15,min:1,akt:''},pen:{n:'Unit baru',k:'non',src:'',vol:0,menit:0,tim:1,kel:0,pos:0,jam:8,min:1,akt:''}}[g];
+    S[g].push(tpl);save();buildAll();}
+  if(d){const [g,i]=d.dataset.del.split(':');if(confirm('Hapus baris ini?')){S[g].splice(+i,1);save();buildAll();}}
+});
+
+// ---------- export / import ----------
+function dl(name,text,type){const b=new Blob([text],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+$('b-csv').onclick=()=>{const R=calc(S);const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const lines=[['Bagian','Unit','Kelompok','Kebutuhan FTE','Aktual FTE','Selisih','Rasio WISN','Status','Dasar'].map(q).join(',')];
+  R.rows.forEach(x=>lines.push([SEC[x.g],x.n,KN[x.k],x.fte.toFixed(2),x.akt==null?'':x.akt,x.gap==null?'':x.gap.toFixed(2),x.ratio==null?'':x.ratio.toFixed(2),x.st||'',x.basis].map(q).join(',')));
+  dl('siprosdm-hasil.csv','\ufeff'+lines.join('\r\n'),'text/csv;charset=utf-8');};
+$('b-json').onclick=()=>dl('siprosdm-data.json',JSON.stringify(S,null,1),'application/json');
+$('b-imp').onclick=()=>$('f-imp').click();
+$('f-imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const s=JSON.parse(r.result);if(!valid(s))throw new Error('Format tidak dikenali');S=s;S.rs=Object.assign(clone(DEF.rs),S.rs);S.keu=Object.assign(clone(DEF.keu),S.keu);save();buildAll();msg('Data berhasil diimpor.');}catch(err){msg('Gagal impor: '+err.message);}};r.readAsText(f);e.target.value='';};
+$('b-print').onclick=()=>window.print();
+$('b-reset').onclick=()=>{if(confirm('Kembalikan semua data ke nilai bawaan?')){S=clone(DEF);save();buildAll();}};
+
+// ---------- Google Sheets sync ----------
+function msg(t){$('syn-msg').textContent=t;}
+async function pushRemote(){
+  if(API_URL==='API_URL'){msg('API_URL belum diisi. Ikuti panduan: deploy Code.gs lalu tempel URL Web App ke konstanta API_URL di index.html.');return;}
+  try{msg('Menyimpan...');const R=calc(S);
+    const snapshot=R.rows.map(x=>[SEC[x.g],x.n,KN[x.k],+x.fte.toFixed(2),x.akt==null?'':x.akt,x.gap==null?'':+x.gap.toFixed(2),x.st||'']);
+    const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'save',state:S,snapshot})});
+    const j=await res.json();msg(j.ok?'Tersimpan di Google Sheets: '+j.ts:'Gagal: '+j.error);
+  }catch(e){msg('Gagal: '+e.message);}
+}
+async function pullRemote(){
+  if(API_URL==='API_URL'){msg('API_URL belum diisi.');return;}
+  try{msg('Memuat...');const res=await fetch(API_URL+'?action=load');const j=await res.json();
+    if(!j.ok)throw new Error(j.error);if(!j.state){msg('Belum ada data tersimpan di Sheets.');return;}
+    if(!valid(j.state))throw new Error('Format data di Sheets tidak valid');
+    S=j.state;S.rs=Object.assign(clone(DEF.rs),S.rs);S.keu=Object.assign(clone(DEF.keu),S.keu);save();buildAll();msg('Dimuat dari Sheets (disimpan '+j.ts+')');
+  }catch(e){msg('Gagal: '+e.message);}
+}
+$('b-push').onclick=pushRemote;
+$('b-pull').onclick=pullRemote;
+
+buildAll();
+</script>
+</body>
+</html>
